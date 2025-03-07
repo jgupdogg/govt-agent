@@ -1,0 +1,9 @@
+{
+  "resource": "/api/health",
+  "path": "/api/health",
+  "httpMethod": "GET",
+  "headers": {
+    "Accept": "*/*",
+    "Host": "vu3lnp4rzl.execute-api.us-east-1.amazonaws.com"
+  }
+}

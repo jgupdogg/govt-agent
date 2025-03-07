@@ -1,0 +1,31 @@
+/* src/theme-variables.css */
+
+:root {
+  /* Light mode variables */
+  --color-primary: #3E442B;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #6A7062;
+  --color-secondary-foreground: #FFFFFF;
+  --color-accent: #8D909B;
+  --color-accent-foreground: #FFFFFF;
+  --color-destructive: #FF4444;
+  --color-destructive-foreground: #FFFFFF;
+  --color-background: #FFFFFF;
+  --color-dark-bg: #3E442B;
+  --color-light-bg: #F9FAFB;
+  --color-odd-block: #AAADC4;
+  --color-even-block: #D6EEFF;
+  --color-odd-block-dark: #6A7062;
+  --color-even-block-dark: #8D909B;
+  --color-text-dark: #3E442B;
+  --color-text-light: #D6EEFF;
+}
+
+.dark {
+  --color-primary: #D6EEFF;
+  --color-primary-foreground: #3E442B;
+  --color-secondary: #AAADC4;
+  --color-secondary-foreground: #3E442B;
+  --color-background: #3E442B;
+  --color-text-primary: #D6EEFF;
+}

@@ -1,0 +1,72 @@
+/* src/App.css */
+
+/* Base styles */
+.app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Hero section styling */
+  .hero-section {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .hero-section::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(214, 238, 255, 0.15) 0%, rgba(214, 238, 255, 0) 70%);
+    z-index: 1;
+  }
+  
+  .dark .hero-section::after {
+    background: radial-gradient(circle at 50% 50%, rgba(62, 68, 43, 0.15) 0%, rgba(62, 68, 43, 0) 70%);
+  }
+  
+  /* Make sure content is above the gradient */
+  .hero-section > * {
+    position: relative;
+    z-index: 2;
+  }
+  
+  /* Card hover effects */
+  .card-hover {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  /* Smooth scroll behavior */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: var(--color-even-block);
+  }
+  
+  .dark ::-webkit-scrollbar-track {
+    background: var(--color-even-block-dark);
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-primary);
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-secondary);
+  }
