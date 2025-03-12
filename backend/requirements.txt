@@ -8,3 +8,5 @@ python-dotenv
 pydantic
 neo4j
 supabase
+mangum
+boto3

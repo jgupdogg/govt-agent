@@ -6,13 +6,13 @@ Combines vector search and knowledge graph with Supabase for document retrieval.
 import os
 import logging
 from typing import List, Optional, Dict, Any, Union
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import datetime
 from dotenv import load_dotenv
 
-# Import the new HybridSearchEngine class
+# Import the HybridSearchEngine class
 from core import HybridSearchEngine
 
 # Load environment variables from .env file
@@ -35,6 +35,7 @@ origins = [
     "http://127.0.0.1:5173",
     "http://localhost",
     "http://localhost:8080",
+    "https://d1w96xnev7lp1l.cloudfront.net",  # Add your CloudFront domain
 ]
 
 # Add CORS middleware with detailed configuration
@@ -48,19 +49,34 @@ app.add_middleware(
     max_age=86400,  # Cache preflight requests for 24 hours
 )
 
-# Initialize the HybridSearchEngine with API keys from environment variables
-search_engine = HybridSearchEngine(
-    anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-    openai_api_key=os.getenv("OPENAI_API_KEY"),
-    pinecone_api_key=os.getenv("PINECONE_API_KEY"),
-    pinecone_index=os.getenv("PINECONE_INDEX_NAME", "govt-scrape-index"),
-    pinecone_namespace=os.getenv("PINECONE_NAMESPACE", "govt-content"),
-    neo4j_uri=os.getenv("NEO4J_URI"),
-    neo4j_username=os.getenv("NEO4J_USERNAME"),
-    neo4j_password=os.getenv("NEO4J_PASSWORD"),
-    supabase_url=os.getenv("SUPABASE_URL"),
-    supabase_key=os.getenv("SUPABASE_KEY")
-)
+# Global search_engine variable
+_search_engine = None
+
+# Function to get search engine instance (lazy loading)
+def get_search_engine():
+    global _search_engine
+    if _search_engine is None:
+        try:
+            logger.info("Initializing search engine...")
+            _search_engine = HybridSearchEngine(
+                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+                openai_api_key=os.getenv("OPENAI_API_KEY"),
+                pinecone_api_key=os.getenv("PINECONE_API_KEY"),
+                pinecone_index=os.getenv("PINECONE_INDEX_NAME", "govt-scrape-index"),
+                pinecone_namespace=os.getenv("PINECONE_NAMESPACE", "govt-content"),
+                neo4j_uri=os.getenv("NEO4J_URI"),
+                neo4j_username=os.getenv("NEO4J_USERNAME"),
+                neo4j_password=os.getenv("NEO4J_PASSWORD"),
+                supabase_url=os.getenv("SUPABASE_URL"),
+                supabase_key=os.getenv("SUPABASE_KEY")
+            )
+            logger.info("Search engine initialized successfully")
+        except Exception as e:
+            logger.error(f"Error initializing search engine: {e}")
+            # Return a minimal search engine that won't crash but just returns empty results
+            # This prevents startup errors but allows the health check to pass
+            return None
+    return _search_engine
 
 # Pydantic models for data validation and serialization
 class SearchQuery(BaseModel):
@@ -102,18 +118,21 @@ async def options_handler(request: Request, full_path: str):
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return response
 
-@app.get("/api/health")
+@app.get("/health")
 def health_check():
     """
     Health check endpoint
     """
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
-@app.get("/api/debug")
+@app.get("/debug")
 async def debug_info():
     """
     Debug endpoint that returns information about the environment and configuration
     """
+    # Initialize the search engine
+    search_engine = get_search_engine()
+    
     # Get environment info (sanitized)
     env_info = {
         "ANTHROPIC_API_KEY": "******" if os.getenv("ANTHROPIC_API_KEY") else "Not set",
@@ -124,15 +143,23 @@ async def debug_info():
         "NEO4J_PASSWORD": "******" if os.getenv("NEO4J_PASSWORD") else "Not set",
         "SUPABASE_URL": "******" if os.getenv("SUPABASE_URL") else "Not set",
         "SUPABASE_KEY": "******" if os.getenv("SUPABASE_KEY") else "Not set",
-        "PINECONE_INDEX": search_engine.pinecone_index,
-        "PINECONE_NAMESPACE": search_engine.pinecone_namespace,
+        "PINECONE_INDEX": os.getenv("PINECONE_INDEX_NAME", "govt-scrape-index"),
+        "PINECONE_NAMESPACE": os.getenv("PINECONE_NAMESPACE", "govt-content"),
     }
     
     # Search capabilities available
-    search_capabilities = {
-        "vector_search_available": search_engine.vector_search_available,
-        "knowledge_graph_available": search_engine.kg_search_available
-    }
+    search_capabilities = {}
+    if search_engine:
+        search_capabilities = {
+            "vector_search_available": search_engine.vector_search_available,
+            "knowledge_graph_available": search_engine.kg_search_available
+        }
+    else:
+        search_capabilities = {
+            "vector_search_available": False,
+            "knowledge_graph_available": False,
+            "error": "Search engine failed to initialize"
+        }
     
     return {
         "timestamp": datetime.now().isoformat(),
@@ -141,11 +168,15 @@ async def debug_info():
     }
 
 # Add a simple sample-search endpoint for backward compatibility
-@app.get("/api/sample-search")
+@app.get("/sample-search")
 async def sample_search():
     """
     Return sample search results for "economic data and statistics"
     """
+    search_engine = get_search_engine()
+    if not search_engine:
+        return []
+        
     try:
         results = search_engine.hybrid_search(
             query="economic data and statistics",
@@ -160,11 +191,15 @@ async def sample_search():
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/search", response_model=List[SearchResult])
+@app.post("/search", response_model=List[SearchResult])
 async def search(search_query: SearchQuery):
     """
     Perform a hybrid search using vector similarity and knowledge graph
     """
+    search_engine = get_search_engine()
+    if not search_engine:
+        raise HTTPException(status_code=503, detail="Search engine is not available")
+        
     try:
         results = search_engine.hybrid_search(
             query=search_query.query,
@@ -215,11 +250,15 @@ async def search(search_query: SearchQuery):
         }
         raise HTTPException(status_code=500, detail=error_detail)
 
-@app.post("/api/vector-search")
+@app.post("/vector-search")
 async def vector_search(search_query: SearchQuery):
     """
     Perform only vector search
     """
+    search_engine = get_search_engine()
+    if not search_engine:
+        raise HTTPException(status_code=503, detail="Search engine is not available")
+        
     try:
         if not search_engine.vector_search_available:
             raise HTTPException(status_code=400, detail="Vector search is not available")
@@ -265,11 +304,15 @@ async def vector_search(search_query: SearchQuery):
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/kg-search")
+@app.post("/kg-search")
 async def kg_search(search_query: SearchQuery):
     """
     Perform only knowledge graph search
     """
+    search_engine = get_search_engine()
+    if not search_engine:
+        raise HTTPException(status_code=503, detail="Search engine is not available")
+        
     try:
         if not search_engine.kg_search_available:
             raise HTTPException(status_code=400, detail="Knowledge graph search is not available")
@@ -321,11 +364,15 @@ async def kg_search(search_query: SearchQuery):
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/chat")
+@app.post("/chat")
 async def chat(chat_query: dict):
     """
     Enhanced chat endpoint for RAG-based conversation
     """
+    search_engine = get_search_engine()
+    if not search_engine:
+        raise HTTPException(status_code=503, detail="Search engine is not available")
+        
     try:
         # Extract query, chat history, and context
         query = chat_query.get("query", "")

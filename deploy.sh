@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 # Print header
 echo -e "${BLUE}"
 echo "============================================================="
-echo "       Solana Traders Dashboard - Deployment Script          "
+echo "       Government Agent - Deployment Script                   "
 echo "============================================================="
 echo -e "${NC}"
 
@@ -19,7 +19,7 @@ ENVIRONMENT=${1:-dev}
 echo -e "${YELLOW}Deploying to environment: ${ENVIRONMENT}${NC}"
 
 # Set stack name
-STACK_NAME="solana-traders-stack-${ENVIRONMENT}"
+STACK_NAME="govt-agent-stack-${ENVIRONMENT}"
 
 # Get AWS account ID and region
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
@@ -30,7 +30,7 @@ if [ -z "$AWS_REGION" ]; then
 fi
 
 # Set ECR repository name based on environment
-ECR_REPOSITORY="solana-traders-repo-${ENVIRONMENT}"
+ECR_REPOSITORY="govt-agent-repo-${ENVIRONMENT}"
 ECR_REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
 
 # Get stack outputs
@@ -53,6 +53,18 @@ stack_exists() {
   aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$AWS_REGION" > /dev/null 2>&1
   return $?
 }
+
+# Check if ECR repository exists
+ecr_repo_exists() {
+  aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" --region "$AWS_REGION" > /dev/null 2>&1
+  return $?
+}
+
+# Create ECR repository if it doesn't exist
+if ! ecr_repo_exists; then
+  echo -e "${YELLOW}Creating ECR repository: ${ECR_REPOSITORY}...${NC}"
+  aws ecr create-repository --repository-name "$ECR_REPOSITORY" --region "$AWS_REGION"
+fi
 
 # Build and deploy backend Docker image
 echo -e "\n${YELLOW}Building and deploying backend Docker image...${NC}"
@@ -115,9 +127,9 @@ if stack_exists; then
     --paths "/*" \
     --region $AWS_REGION
 
-  echo -e "\n${GREEN}=====\${NC}"
-  echo -e "${GREEN}Solana Traders Dashboard has been successfully updated!${NC}"
-  echo -e "${GREEN}=====\${NC}"
+  echo -e "\n${GREEN}=====${NC}"
+  echo -e "${GREEN}Government Agent has been successfully updated!${NC}"
+  echo -e "${GREEN}=====${NC}"
   
   # Test the Lambda function
   API_ENDPOINT=$(get_cf_output "ApiEndpoint")
@@ -137,7 +149,7 @@ else
     --stack-name "$STACK_NAME" \
     --template-body "file://container-cloudformation-deploy.yaml" \
     --parameters ParameterKey=Environment,ParameterValue="$ENVIRONMENT" \
-                 ParameterKey=S3BucketPrefix,ParameterValue="solana-traders" \
+                 ParameterKey=S3BucketPrefix,ParameterValue="govt-agent" \
     --capabilities CAPABILITY_NAMED_IAM \
     --region "$AWS_REGION"
 
@@ -188,7 +200,7 @@ else
     --region $AWS_REGION
 
   echo -e "\n${GREEN}=====================================================${NC}"
-  echo -e "${GREEN}Solana Traders Dashboard has been successfully set up!${NC}"
+  echo -e "${GREEN}Government Agent has been successfully set up!${NC}"
   echo -e "${GREEN}=====================================================${NC}"
   echo -e "\n${YELLOW}Frontend URL:${NC} https://$(aws cloudformation describe-stacks --stack-name $STACK_NAME \
     --query "Stacks[0].Outputs[?OutputKey=='FrontendURL'].OutputValue" --output text | sed 's|https://||')"

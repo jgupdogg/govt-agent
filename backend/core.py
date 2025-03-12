@@ -274,8 +274,11 @@ class HybridSearchEngine:
         self.vector_search_available = all([self.anthropic_api_key, self.openai_api_key, self.pinecone_api_key])
         self.kg_search_available = all([self.neo4j_uri, self.neo4j_username, self.neo4j_password])
         
+        # Logging credentials availability instead of raising an error
         if not self.vector_search_available and not self.kg_search_available:
-            raise ValueError("Neither vector search nor knowledge graph search is available with the provided credentials.")
+            logger.warning("Neither vector search nor knowledge graph search is available with the provided credentials.")
+            # We're not raising the error here anymore, allowing the app to start up
+            # just with limited functionality
     
     def _init_llm(self):
         """Initialize LLM if not already done."""

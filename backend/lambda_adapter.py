@@ -25,32 +25,51 @@ def get_parameter(name, with_decryption=True):
         logger.error(f"Error getting parameter {name}: {e}")
         return None
 
-# Load Snowflake credentials from Parameter Store
-def load_snowflake_credentials():
+# Load API credentials from Parameter Store
+def load_api_credentials():
     try:
-        account = get_parameter('/solana-traders/snowflake/account')
-        if account:
-            os.environ['SNOWFLAKE_ACCOUNT'] = account
+        # API keys for LLM and vector search
+        anthropic_api_key = get_parameter('/govt-agent/anthropic/api_key')
+        if anthropic_api_key:
+            os.environ['ANTHROPIC_API_KEY'] = anthropic_api_key
         
-        user = get_parameter('/solana-traders/snowflake/user')
-        if user:
-            os.environ['SNOWFLAKE_USER'] = user
+        openai_api_key = get_parameter('/govt-agent/openai/api_key')
+        if openai_api_key:
+            os.environ['OPENAI_API_KEY'] = openai_api_key
         
-        password = get_parameter('/solana-traders/snowflake/password')
-        if password:
-            os.environ['SNOWFLAKE_PASSWORD'] = password
+        pinecone_api_key = get_parameter('/govt-agent/pinecone/api_key')
+        if pinecone_api_key:
+            os.environ['PINECONE_API_KEY'] = pinecone_api_key
         
-        os.environ['SNOWFLAKE_WAREHOUSE'] = get_parameter('/solana-traders/snowflake/warehouse', False) or 'DEV_WH'
-        os.environ['SNOWFLAKE_DATABASE'] = get_parameter('/solana-traders/snowflake/database', False) or 'DEV'
-        os.environ['SNOWFLAKE_SCHEMA'] = get_parameter('/solana-traders/snowflake/schema', False) or 'BRONZE'
-        os.environ['SNOWFLAKE_ROLE'] = get_parameter('/solana-traders/snowflake/role', False) or 'AIRFLOW_ROLE'
+        # Optional Pinecone configuration
+        os.environ['PINECONE_INDEX_NAME'] = get_parameter('/govt-agent/pinecone/index', False) or 'govt-scrape-index'
+        os.environ['PINECONE_NAMESPACE'] = get_parameter('/govt-agent/pinecone/namespace', False) or 'govt-content'
+        
+        # Neo4j credentials
+        neo4j_uri = get_parameter('/govt-agent/neo4j/uri')
+        if neo4j_uri:
+            os.environ['NEO4J_URI'] = neo4j_uri
+        
+        neo4j_username = get_parameter('/govt-agent/neo4j/username')
+        if neo4j_username:
+            os.environ['NEO4J_USERNAME'] = neo4j_username
+        
+        neo4j_password = get_parameter('/govt-agent/neo4j/password')
+        if neo4j_password:
+            os.environ['NEO4J_PASSWORD'] = neo4j_password
+        
+        # Supabase credentials
+        supabase_url = get_parameter('/govt-agent/supabase/url')
+        if supabase_url:
+            os.environ['SUPABASE_URL'] = supabase_url
+        
+        supabase_key = get_parameter('/govt-agent/supabase/key')
+        if supabase_key:
+            os.environ['SUPABASE_KEY'] = supabase_key
+            
     except Exception as e:
-        logger.error(f"Error loading Snowflake credentials: {e}")
-        # Still set default values for non-sensitive parameters
-        os.environ.setdefault('SNOWFLAKE_WAREHOUSE', 'DEV_WH')
-        os.environ.setdefault('SNOWFLAKE_DATABASE', 'DEV')
-        os.environ.setdefault('SNOWFLAKE_SCHEMA', 'BRONZE')
-        os.environ.setdefault('SNOWFLAKE_ROLE', 'AIRFLOW_ROLE')
+        logger.error(f"Error loading API credentials: {e}")
+        # Continue with execution - app.py will handle missing credentials
 
 # Create a Mangum adapter for the FastAPI app
 handler = Mangum(app)
@@ -60,8 +79,8 @@ def lambda_handler(event, context):
     try:
         logger.info(f"Received event: {json.dumps(event)}")
         
-        # Load the Snowflake credentials from Parameter Store
-        load_snowflake_credentials()
+        # Load API credentials from Parameter Store
+        load_api_credentials()
         
         # Handle the request using Mangum
         response = handler(event, context)
@@ -83,6 +102,9 @@ def lambda_handler(event, context):
                 'traceback': traceback.format_exc().split('\n')
             }),
             'headers': {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization'
             }
         }

@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY app.py ${LAMBDA_TASK_ROOT}
+COPY core.py ${LAMBDA_TASK_ROOT}
 COPY lambda_adapter.py ${LAMBDA_TASK_ROOT}
 
 # Set the handler

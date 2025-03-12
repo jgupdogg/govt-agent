@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Solana Traders Dashboard - Using Container-based Lambda'
+Description: 'Government Agent API - Using Container-based Lambda'
 
 Parameters:
   Environment:
@@ -12,7 +12,7 @@ Parameters:
 
   S3BucketPrefix:
     Type: String
-    Default: solana-traders
+    Default: govt-agent
     Description: Base name of the S3 bucket for frontend hosting
 
 Conditions:
@@ -25,7 +25,6 @@ Resources:
   
   # S3 Bucket for frontend hosting with basic encryption
   FrontendBucket:
-    Type: AWS::S3::Bucket
     Properties:
       # Using intrinsic function to generate a partially random name with the stack ID
       BucketName: !Join 
@@ -128,7 +127,7 @@ Resources:
                 Action:
                   - ssm:GetParameter
                 Resource:
-                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/solana-traders/snowflake/*"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/govt-agent/*"
 
   # Lambda Function - Using pre-built container image
   LambdaFunction:
@@ -139,8 +138,8 @@ Resources:
       Code:
         ImageUri: CONTAINER_IMAGE_PLACEHOLDER
       Role: !GetAtt LambdaExecutionRole.Arn
-      Timeout: 30
-      MemorySize: !If [IsProd, 256, 128]
+      Timeout: 60
+      MemorySize: !If [IsProd, 512, 256]  # Increased memory for language models
       Environment:
         Variables:
           ENVIRONMENT: !Ref Environment
@@ -155,25 +154,17 @@ Resources:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: !Sub "${AWS::StackName}-api"
-      Description: API for Solana Traders Dashboard
+      Description: API for Government Agent
       EndpointConfiguration:
         Types:
           - REGIONAL
 
   # API Gateway Resources
-  ApiResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref ApiGateway
-      ParentId: !GetAtt ApiGateway.RootResourceId
-      PathPart: "api"
-
-  # Proxy Resource
   ApiProxyResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref ApiGateway
-      ParentId: !Ref ApiResource
+      ParentId: !GetAtt ApiGateway.RootResourceId
       PathPart: "{proxy+}"
 
   # ANY Method
@@ -249,7 +240,7 @@ Outputs:
   
   ApiEndpoint:
     Description: API Gateway endpoint URL
-    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/api"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
   
   S3BucketName:
     Description: Name of the S3 bucket

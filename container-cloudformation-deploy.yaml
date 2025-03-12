@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Solana Traders Dashboard - Using Container-based Lambda'
+Description: 'Government Agent API - Using Container-based Lambda'
 
 Parameters:
   Environment:
@@ -12,7 +12,7 @@ Parameters:
 
   S3BucketPrefix:
     Type: String
-    Default: solana-traders
+    Default: govt-agent
     Description: Base name of the S3 bucket for frontend hosting
 
 Conditions:
@@ -128,7 +128,7 @@ Resources:
                 Action:
                   - ssm:GetParameter
                 Resource:
-                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/solana-traders/snowflake/*"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/govt-agent/*"
 
   # Lambda Function - Using pre-built container image
   LambdaFunction:
@@ -137,10 +137,10 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-function"
       PackageType: Image
       Code:
-        ImageUri: 418295715028.dkr.ecr.us-east-1.amazonaws.com/solana-traders-repo-dev:latest
+        ImageUri: 418295715028.dkr.ecr.us-east-1.amazonaws.com/govt-agent-repo-dev:latest:latest
       Role: !GetAtt LambdaExecutionRole.Arn
-      Timeout: 30
-      MemorySize: !If [IsProd, 256, 128]
+      Timeout: 60
+      MemorySize: !If [IsProd, 512, 256]  # Increased memory for language models
       Environment:
         Variables:
           ENVIRONMENT: !Ref Environment
@@ -155,7 +155,7 @@ Resources:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: !Sub "${AWS::StackName}-api"
-      Description: API for Solana Traders Dashboard
+      Description: API for Government Agent
       EndpointConfiguration:
         Types:
           - REGIONAL
@@ -249,7 +249,7 @@ Outputs:
   
   ApiEndpoint:
     Description: API Gateway endpoint URL
-    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/api"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
   
   S3BucketName:
     Description: Name of the S3 bucket
