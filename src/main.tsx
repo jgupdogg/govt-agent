@@ -2,13 +2,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from './contexts/ThemeContext';
-import SolanaTraders from './pages/SolanaTraders';
+import GovtAgent from './pages/GovtAgent';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
-      <SolanaTraders />
+      <GovtAgent />
     </ThemeProvider>
   </React.StrictMode>
 );

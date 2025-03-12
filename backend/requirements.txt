@@ -6,3 +6,5 @@ langchain-anthropic
 pinecone-client
 python-dotenv
 pydantic
+neo4j
+supabase
