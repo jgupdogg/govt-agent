@@ -18,6 +18,8 @@ from core import HybridSearchEngine
 # Load environment variables from .env file
 load_dotenv()
 
+environment = os.getenv("ENVIRONMENT", "dev")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -25,7 +27,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Hybrid Search API", description="API for Government Data Search combining Vector and Knowledge Graph")
+app = FastAPI(title="Hybrid Search API", root_path=f"/{environment}", description="API for Government Data Search combining Vector and Knowledge Graph")
 
 # Configure CORS - explicitly allow localhost domains with more permissive settings
 origins = [
@@ -46,7 +48,6 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods for simplicity during development
     allow_headers=["*"],  # Allow all headers
     expose_headers=["*"],
-    max_age=86400,  # Cache preflight requests for 24 hours
 )
 
 # Global search_engine variable
@@ -100,32 +101,16 @@ class SearchResult(BaseModel):
     graph_context: Optional[str] = None
     knowledge_graph: Optional[bool] = None
 
-# Custom middleware to manually add CORS headers if needed
-@app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    return response
 
-# Add OPTIONS method handler for all routes
-@app.options("/{full_path:path}")
-async def options_handler(request: Request, full_path: str):
-    response = Response()
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    return response
 
-@app.get("/health")
+@app.get("/api/health")
 def health_check():
     """
     Health check endpoint
     """
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
-@app.get("/debug")
+@app.get("/api/debug")
 async def debug_info():
     """
     Debug endpoint that returns information about the environment and configuration
@@ -168,7 +153,7 @@ async def debug_info():
     }
 
 # Add a simple sample-search endpoint for backward compatibility
-@app.get("/sample-search")
+@app.get("/api/sample-search")
 async def sample_search():
     """
     Return sample search results for "economic data and statistics"
@@ -191,7 +176,7 @@ async def sample_search():
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/search", response_model=List[SearchResult])
+@app.post("/api/search", response_model=List[SearchResult])
 async def search(search_query: SearchQuery):
     """
     Perform a hybrid search using vector similarity and knowledge graph
@@ -250,7 +235,7 @@ async def search(search_query: SearchQuery):
         }
         raise HTTPException(status_code=500, detail=error_detail)
 
-@app.post("/vector-search")
+@app.post("/api/vector-search")
 async def vector_search(search_query: SearchQuery):
     """
     Perform only vector search
@@ -304,7 +289,7 @@ async def vector_search(search_query: SearchQuery):
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/kg-search")
+@app.post("/api/kg-search")
 async def kg_search(search_query: SearchQuery):
     """
     Perform only knowledge graph search
@@ -364,7 +349,7 @@ async def kg_search(search_query: SearchQuery):
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/chat")
+@app.post("/api/chat")
 async def chat(chat_query: dict):
     """
     Enhanced chat endpoint for RAG-based conversation

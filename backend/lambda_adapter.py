@@ -75,15 +75,26 @@ def load_api_credentials():
 handler = Mangum(app)
 
 # Load credentials before any request is processed
+
 def lambda_handler(event, context):
     try:
         logger.info(f"Received event: {json.dumps(event)}")
+        
+        # Log specific request details for debugging
+        logger.info(f"HTTP Method: {event.get('httpMethod')}")
+        logger.info(f"Path: {event.get('path')}")
+        logger.info(f"Resource Path: {event.get('resource')}")
         
         # Load API credentials from Parameter Store
         load_api_credentials()
         
         # Handle the request using Mangum
         response = handler(event, context)
+        
+        # Ensure CORS headers are always present
+        if 'headers' not in response:
+            response['headers'] = {}
+
         
         logger.info(f"Response: {json.dumps(response)}")
         return response
@@ -103,8 +114,5 @@ def lambda_handler(event, context):
             }),
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization'
             }
         }
